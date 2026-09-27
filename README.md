@@ -7,101 +7,96 @@
 
 ---
 
-### 🏛️ 1. الهيكلية البرمجية وفصل الاهتمامات (Architecture & Separation of Concerns)
+### 🏛️ 1. الهيكلية المعمارية وتنظيم المجلدات (Project Structure)
 
-تم تقسيم المشروع إلى وحدات برمجية محكمة ومترابطة تحقق أعلى درجات التماسك (High Cohesion) وأقل درجات الاعتمادية (Low Coupling):
+تم تنظيم المشروع في حزم ومجلدات معيارية مفصولة الاهتمامات (**Frontend / Backend / Models / Config / Tests / Docs / Reports**):
 
-1. **`core_math.py` (وحدة الحسابات والتحويلات الهندسية الصرفة)**:
-   - دوال نقية تماماً (Pure Functions) مستقلة عن واجهة المستخدم وخالية من الآثار الجانبية، مما يجعلها قابلة للاختبار المباشر (100% Unit Testable).
-   - خوارزمية المنطقة الميتة الصارمة والتنعيم التدريجي المتصل (`continuous_leash_easing`).
-   - حل مصفوفة التحويل التآلفي التفاعلية عبر المربعات الصغرى (`solve_affine_transform`).
-   - قياس نسبة انفتاح العين (`calculate_ear`) وزوايا توجيه الرأس (`calculate_head_pose`).
-   - مرشحات التنعيم الفيزيائية المتكيفة (`ExponentialFilter`, `OneEuroFilter`).
-
-2. **`state_machine.py` (آلة الحالات المستقرة زمنياً - Latching State Machine)**:
-   - إدارة حالات النظام الخمس:
-     - `ACTIVE`: التتبع والكتابة الحرة.
-     - `PAUSED`: إيقاف مؤقت بالقبضة أو إغلاق العين.
-     - `CALIBRATING`: جلسة المعايرة (حجب صارم لجميع الإيماءات لمنع التعارض).
-     - `ROW_LOCKED`: قفل أفقي لصف محدد لتمكين الكتابة السريعة.
-     - `SAFE_FREEZE`: تجميد المؤشر الاحتياطي فور غياب الوجه أو تعطل الكاميرا.
-   - منع الذبذبة العشوائية (Debouncing) والتحقق من الاستقرار الزمني للإيماءات.
-
-3. **`tracking_engine.py` (محرك الرؤية وخوارزمية التحكم)**:
-   - `VisionTrackerEngine`: تهيئة نماذج MediaPipe (`FaceLandmarker` و `HandLandmarker`) مع دعم التنزيل التلقائي والفشل الاحتياطي (Graceful Fallback).
-   - `NosePointerAlgorithm`: تنفيذ معادلات الحركة المحايدة، والتحويل بين بكسل الكاميرا والشاشة، والتكبير المتزن للحساسية.
-   - بنية البيانات الآمنة للتزامن (`TrackingResult`).
-   - إدارة المعايرة المحفوظة (`calibration.json`) بقيم افتراضية مرنة تمنع الانهيار.
-
-4. **`calibration_ui.py` (نافذة المعايرة الهندسية 9 نقاط)**:
-   - نافذة تفاعلية مستقلة (`tk.Toplevel`) ترشد المستخدم بنقاط 3x3 متناسقة وحلقات تحميل زمنية.
-   - حساب مصفوفة التحويل التآلفي (Affine Transform) والتحقق الرياضي من صلاحيتها لمنع انحصار المؤشر في الزوايا.
-
-5. **`gaze_keyboard.py` (نقطة الدخول الرئيسية والواجهة الرسومية)**:
-   - فصل المعالجة الرؤيوية الكثيفة في خيط خلفي مستقل (`Background Thread`) عن خيط واجهة المستخدم (`Tkinter Main Thread`).
-   - تبادل البيانات بأمان تام عبر أقفال التزامن (`threading.Lock`) لمنع سباق البيانات (Race Conditions).
-   - واجهة مستخدم مظلمة فائقة الفخامة (Dark Glassmorphic UI) مع مؤشر ليزري بحلقة تثبيت دائرية (Circular Dwell Ring) ودعم لغتين (عربي / إنجليزي).
-
-6. **`test_virtual_keyboard.py` (حزمة اختبارات ضمان الجودة)**:
-   - 12 اختبار وحدة شاملاً يغطي الحسابات الرياضية، آلة الحالات، القفل الليزري في المنطقة الميتة، والحالات الاحتياطية.
-
----
-
-### 📐 2. الخوارزميات والمعادلات الرياضية الأساسية
-
-#### أ. المنطقة الميتة الصارمة والتنعيم التدريجي المتصل (Strict Deadband & Continuous Leash Easing):
-$$d = \sqrt{(x_{target} - x_{smooth})^2 + (y_{target} - y_{smooth})^2}$$
-- **القفل الليزري الصامت (Laser Lock)**:
-  إذا كان $d \le \text{Deadband}$ (افتراضياً 1.8 بكسل):
-  $$P_{smooth}^{(t)} = P_{smooth}^{(t-1)} \quad \text{(ثبات مطلق بنسبة ارتعاش صفرية Zero Jitter)}$$
-- **التنعيم التدريجي المتصل**:
-  عند تجاوز المنطقة الميتة ($d > \text{Deadband}$):
-  $$d_{excess} = d - \text{Deadband}, \quad \text{ratio} = \frac{d_{excess}}{d}$$
-  $$\alpha = 0.30 + 0.62 \times \left(\min\left(1.0, \frac{d_{excess}}{\text{Leash}}\right)\right)^{1.35}$$
-  $$P_{smooth}^{(t)} = P_{smooth}^{(t-1)} + \Delta P \cdot \text{ratio} \cdot \alpha$$
-
-#### ب. مصفوفة التحويل الهندسي التآلفي (9-Point Affine Matrix):
-$$\begin{bmatrix} u \\ v \end{bmatrix} = \begin{bmatrix} a_1 & a_2 & a_3 \\ b_1 & b_2 & b_3 \end{bmatrix} \begin{bmatrix} x \\ y \\ 1 \end{bmatrix}$$
-تُحل بالمربعات الصغرى ($M \cdot A = U, \; M \cdot B = V$) مع التحقق من عدم الشذوذ والانحراف.
-
-#### ج. نسبة انفتاح العين (EAR):
-$$EAR = \frac{||p_{160} - p_{144}|| + ||p_{158} - p_{153}||}{2 \times ||p_{33} - p_{133}||}$$
-إذا كان $EAR < 0.16$، يتم تعليق الكتابة والتثبيت لمنع الإدخال أثناء الرمش أو النعاس.
+```text
+project_DIP_1_1/
+│
+├── main.py                     # نقطة الانطلاق الرئيسية السريعة (Main Entry Point)
+├── requirements.txt            # قائمة التبعيات والمكتبات المطلوبة
+├── README.md                   # دليل البدء السريع والهيكلية العامة
+│
+├── backend/                    # الطبقة الخلفية ومحركات الرؤية والحسابات الرياضية
+│   ├── __init__.py
+│   ├── core_math.py            # الحسابات الهندسية، EAR، Head Pose، والتنعيم (Pure Math)
+│   ├── state_machine.py        # آلة الحالات المستقرة زمنياً (Latching State Machine)
+│   ├── tracking_engine.py      # محرك الرؤية وتتبع الملامح (MediaPipe Vision Tracker)
+│   └── database_schema.sql     # سكريبت DDL لقاعدة البيانات العلائقية 3NF
+│
+├── frontend/                   # الطبقة الأمامية وواجهات المستخدم الرسومية
+│   ├── __init__.py
+│   ├── gaze_keyboard.py        # واجهة الكيبورد المظلمة والمؤشر الليزري (Main GUI)
+│   └── calibration_ui.py       # نافذة المعايرة الهندسية 9 نقاط (Calibration Window)
+│
+├── models/                     # نماذج الذكاء الاصطناعي المدربة مسبقاً (MediaPipe AI Task Models)
+│   ├── face_landmarker.task    # نموذج معالم الوجه (478 نقطة ثلاثية الأبعاد)
+│   └── hand_landmarker.task    # نموذج معالم اليد (21 مفصلاً ثلاثي الأبعاد)
+│
+├── config/                     # ملفات الإعدادات والبيانات المحلية
+│   └── calibration.json        # المعاملات المحفوظة ومصفوفة التحويل
+│
+├── tests/                      # حزمة اختبارات ضمان الجودة وضمان الاعتمادية
+│   ├── __init__.py
+│   └── test_virtual_keyboard.py # 12 اختبار وحدة شاملاً (Unit Tests)
+│
+├── docs/                       # وثائق النظام والمتطلبات والمواصفات (Technical Documentation)
+│   ├── TOOLS.md                # 1. دليل الأدوات والمكتبات والتقنيات البرمجية المستخدمة
+│   ├── SYSTEM_DOCUMENTATION.md # 2. الوثيقة الهندسية والمعمارية الشاملة وخط أنابيب المعالجة
+│   └── SRS.md                  # 3. وثيقة مواصفات متطلبات البرمجيات (وفق معيار IEEE Std 830)
+│
+└── reports/                    # التقارير الأكاديمية الفاخرة المنسقة والعروض التقديمية
+    ├── scripts/                # سكريبتات التوليد الآلي للتقارير والعروض
+    │   ├── build_luxury_pdf_report.py
+    │   ├── build_academic_report.py
+    │   ├── generate_academic_documentation.py
+    │   └── generate_database_specification_pdf.py
+    ├── Academic_Engineering_Documentation_Gaze_Keyboard.pdf
+    ├── Academic_Presentation_Gaze_Keyboard.pptx
+    ├── Academic_Report_Gaze_Keyboard_DIP.pdf
+    └── Database_Architecture_And_Engineering_Specification.pdf
+```
 
 ---
 
-### 🚀 3. التثبيت والتشغيل
+### 🚀 2. التثبيت والتشغيل السريع
 
-#### 1. تثبيت المتطلبات:
+#### أ. تثبيت المتطلبات:
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 2. تشغيل الكيبورد الافتراضي:
+#### ب. تشغيل الكيبورد الافتراضي:
 ```bash
-python gaze_keyboard.py
+python main.py
 ```
 
-#### 3. تشغيل اختبارات الجودة (Unit Tests):
+#### ج. تشغيل حزمة اختبارات الجودة (Unit Tests):
 ```bash
-python -m unittest test_virtual_keyboard.py
+python -m unittest discover tests
 ```
+
+---
+
+### 📚 3. الوثائق والمستندات الهندسية المتاحة (Docs Directory)
+
+يمكنك الاطلاع على التفاصيل المعمقرقة في مجلد `docs/`:
+1. **[TOOLS.md](file:///d:/كورسات/مستوى%20رابع%20تقنية%20معلومات/معالجة%20صور/عملي/image_editor_project_ultimate_professional/project_DIP_1_1/docs/TOOLS.md):** تفصيل شامل للأدوات، المكتبات (MediaPipe, OpenCV, NumPy, Tkinter)، ومقارنات الأداء وتبرير الاختيار.
+2. **[SYSTEM_DOCUMENTATION.md](file:///d:/كورسات/مستوى%20رابع%20تقنية%20معلومات/معالجة%20صور/عملي/image_editor_project_ultimate_professional/project_DIP_1_1/docs/SYSTEM_DOCUMENTATION.md):** شرح معمارية النظام، خط أنابيب المعالجة (Pipeline)، المعادلات الرياضية (Affine Transform, Strict Deadband, Leash Easing)، والتزامن متعدد الخيوط.
+3. **[SRS.md](file:///d:/كورسات/مستوى%20رابع%20تقنية%20معلومات/معالجة%20صور/عملي/image_editor_project_ultimate_professional/project_DIP_1_1/docs/SRS.md):** وثيقة مواصفات متطلبات البرمجيات الرسمية وفق معيار **IEEE 830** متضمنة المتطلبات الوظيفية وغير الوظيفية وحالات الاستخدام ومصفوفة التتبع (RTM).
 
 ---
 
 ### 🎮 4. إيماءات اليد واختصارات التحكم
 
-| الإيماءة / الاختصار | الوظيفة |
+| الإيماءة / الاختصار | الوظيفة البرمجية |
 | :--- | :--- |
-| **✊ قبضة اليد (Fist)** | إيقاف مؤقت للكيبورد (PAUSED) وتجميد التثبيت |
-| **✋ كف اليد المفتوح (Palm)** | استئناف التتبع الفوري (ACTIVE) أو إلغاء قفل الصف |
+| **✊ قبضة اليد (Fist)** | إيقاف مؤقت للكيبورد (`PAUSED`) وتجميد التثبيت |
+| **✋ كف اليد المفتوح (Palm)** | استئناف التتبع الفوري (`ACTIVE`) أو إلغاء قفل الصف |
 | **☝️ إصبع واحد** | قفل الصف الأول أفقياً لتسريع الكتابة |
 | **✌️ إصبعان** | قفل الصف الثاني أفقياً |
 | **🤟 ثلاثة أصابع** | قفل الصف الثالث أفقياً |
-| **🖖 أربعة أصابع** | قفل الصف الرابع أفقياً |
-| **[C]** | إعادة ضبط مركز الأنف اللحظي في منتصف الشاشة |
-| **[M]** | التبديل الفوري بين تتبع الأنف ومحاكاة الماوس |
-| **[L]** | التبديل بين لوحة المفاتيح العربية والإنجليزية |
-| **[D]** | تفعيل لوحة التشخيص المباشر (Debug Mode HUD) |
-| **[R]** | استعادة إعدادات المعايرة الافتراضية |
-| **[Esc]** | الإغلاق الآمن للتطبيق وتحرير الكاميرا والخيوط |
+| **🖖 أربعة أصابع** | قفل صف المسافة والتحكم |
+| **🎯 زر المعايرة (Calibrate)** | فتح نافذة معايرة 9 نقاط الهندسية لتكييف المؤشر مع جلستك |
+| **🌐 زر اللغة (Language)** | التبديل الفوري بين لوحة المفاتيح العربية والإنجليزية |
