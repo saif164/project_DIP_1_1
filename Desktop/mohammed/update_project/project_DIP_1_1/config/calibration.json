@@ -1,0 +1,21 @@
+{
+  "version": "5.0-Enterprise",
+  "calibrated": true,
+  "date": "2026-09-25 00:31:16",
+  "reference_distance_cm": 60.0,
+  "algo_center_x": 0.43624530473751444,
+  "algo_center_y": 0.5789019531795561,
+  "algo_sens_x": 1.91,
+  "algo_sens_y": 2.0,
+  "algo_deadband": 1.8,
+  "affine_transform_x": [
+    8.78236,
+    2.09436,
+    -4.75687
+  ],
+  "affine_transform_y": [
+    1.13739,
+    15.95414,
+    -9.39774
+  ]
+}
