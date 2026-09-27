@@ -13,6 +13,8 @@ Nose-Controlled Virtual Keyboard with Hand Gesture Controls & 9-Point Calibratio
 - Calibration UI: [calibration_ui.py] نافذة تفاعلية لمعايرة 9 نقاط بدقة عالية.
 - Main GUI App: [gaze_keyboard.py] واجهة المستخدم المتطورة، التزامن متعدد الخيوط، والكانفاس.
 ==================================================================================
+saif sayyad
+
 """
 
 import os
